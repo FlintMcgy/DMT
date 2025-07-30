@@ -6,12 +6,15 @@ Each script is **standalone**, **plug-and-play**, and can be dropped directly in
 You can use a single script, combine several, or integrate them into larger dynamic missions.  
 No unnecessary dependencies each script lists its own requirements.
 
+<br>
+
 ## 📚 Scripts List
 
 - [Capture Zone](#capturezonelua)
-
-
-
+<br>
+<br>
+<br>
+<br>
 
 ## ⚡ Quick Start (General)
 
@@ -27,6 +30,8 @@ Most DMT scripts follow the same basic setup:
 
 
 
+<br>
+<br>
 
 ## 📜 Script Details
 
