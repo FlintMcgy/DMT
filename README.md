@@ -10,7 +10,7 @@ No unnecessary dependencies each script lists its own requirements.
 
 ## 📚 Scripts List
 
-- [CaptureZone.lua](#capturezonelua)
+- [CaptureZone](#capturezonelua)
 
 ---
 
