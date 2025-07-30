@@ -4,7 +4,7 @@ The **Dynamic Mission Toolkit (DMT)** is an expanding library of ready-to-use mi
 Each script is **standalone**, **plug-and-play**, and can be dropped directly into your missions without rewriting core logic.
 
 You can use a single script, combine several, or integrate them into larger dynamic missions.  
-No unnecessary dependencies — each script lists its own requirements.
+No unnecessary dependencies each script lists its own requirements.
 
 <br>
 
@@ -24,7 +24,7 @@ Most DMT scripts follow the same basic setup:
    - Type: `MISSION START`  
    - Action: `DO SCRIPT FILE`  
    - File: `YourScript.lua`  
-4. **Save and run the mission** — the script will start automatically.
+4. **Save and run the mission** the script will start automatically.
 
 <br><br>
 
@@ -41,9 +41,9 @@ Manages **zone ownership** and **contested status** by detecting ground units in
 - Visual zone color changes based on ownership  
 - Contested overlays and progress bars  
 - Optional player notifications when zones are captured  
-- Works entirely with **DCS Scripting API** — no MOOSE or MIST required  
+- Works entirely with **DCS Scripting API** no MOOSE or MIST required  
 - Requires properly named trigger zones in the Mission Editor  
-- **Note:** Does **not** capture airbases — use native DCS capture logic for those  
+- **Note:** Does **not** capture airbases use native DCS capture logic for those  
 
 **Requirements:**
 
