@@ -42,10 +42,9 @@ Manages **zone ownership** and **contested status** by detecting ground units in
 - Visual zone color changes based on ownership
 - Contested overlays and progress bars
 - Optional player notifications when zones are captured
-- Works entirely with **DCS Scripting API** — no MOOSE or MIST required
+- Works entirely with **DCS Scripting API** no MOOSE or MIST required
 - Requires properly named trigger zones in the Mission Editor
 - **Note:** Does **not** capture airbases — use native DCS capture logic for those
 
 **Requirements:**
-- DCS World (any recent version, Open Beta recommended)
 - Trigger zones named according to script instructions
