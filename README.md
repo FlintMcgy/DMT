@@ -4,7 +4,7 @@ The **Dynamic Mission Toolkit (DMT)** is an expanding library of ready-to-use mi
 Each script is **standalone**, **plug-and-play**, and can be dropped directly into your missions without rewriting core logic.  
 
 You can use a single script, combine several, or integrate them into larger dynamic missions.  
-No unnecessary dependencies — each script lists its own requirements.
+No unnecessary dependencies each script lists its own requirements.
 
 ---
 
