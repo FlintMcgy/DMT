@@ -8,13 +8,13 @@ No unnecessary dependencies each script lists its own requirements.
 
 <br>
 
-## 📚 Scripts List
+## Scripts List
 
 - [Capture Zone](#capturezonelua)
 
 <br><br>
 
-## ⚡ Quick Start (General)
+## Quick Start (General)
 
 Most DMT scripts follow the same basic setup:
 
@@ -28,7 +28,7 @@ Most DMT scripts follow the same basic setup:
 
 <br><br>
 
-## 📜 Script Details
+## Script Details
 
 ### `CaptureZone.lua`
 
