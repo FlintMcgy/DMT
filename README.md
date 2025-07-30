@@ -11,6 +11,8 @@ No unnecessary dependencies each script lists its own requirements.
 - [Capture Zone](#capturezonelua)
 
 
+
+
 ## ⚡ Quick Start (General)
 
 Most DMT scripts follow the same basic setup:
@@ -24,8 +26,9 @@ Most DMT scripts follow the same basic setup:
 4. **Save and run the mission** — the script will start automatically.
 
 
-## 📜 Script Details
 
+
+## 📜 Script Details
 
 ### `CaptureZone.lua`
 
