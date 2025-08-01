@@ -1,7 +1,7 @@
 --[[
 Author: @FlintMcgee
 Script: CaptureZone.lua
-Date: 30-07-2025
+Date: 1-08-2025
 Discord: https://discord.gg/fkRzUnazrC
 
 Description:
@@ -9,25 +9,26 @@ Description:
     It visually updates zone colors, contested overlays, progress bars, and optionally sends capture messages to players.
     Features progressive capture mechanics, optional persistence, and uses pure DCS scripting API without external frameworks.
     Requires properly named trigger zones in the Mission Editor to function.
-    Keep in mind this Script only captures Trigger Zones and not Airbases - for that you'll need to utilize the native Capture Logic.
+    Keep in mind this Script only captures Trigger Zones and not Airbases for that you'll need to utilize the native Capture Logic.
 ]]
-
 
 -- [[ CONFIGURATION ]] --
 
-local ZONE_NAMES = { "Alpha", "Bravo", "Charlie" }      -- Trigger zone names from Mission Editor
-local CAPTURE_TIME = 180                                -- Time in seconds to capture a zone (3 minutes)
-local CHECK_INTERVAL = 5                                -- Check interval in seconds
-local SAVE_INTERVAL = 180                               -- Save persistence every 3 minutes
-local CONTEST_FADE_TIME = 30                            -- Time contested overlay stays after contest ends
-local SHOW_MESSAGES = true                              -- Enable/disable capture messages
-local ENABLE_PERSISTENCE = false                        -- Enable/disable saving zone states to file
+local ZONE_NAMES = { "Alpha", "Bravo", "Charlie" }          -- Trigger zone names from Mission Editor
+local CAPTURE_TIME = 180                                    -- Time in seconds to capture a zone (3 minutes)
+local CHECK_INTERVAL = 5                                    -- Check interval in seconds
+local CONTEST_FADE_TIME = 30                                -- Time contested overlay stays after contest ends
+local SHOW_MESSAGES = true                                  -- Enable/disable capture messages
+local ENABLE_PERSISTENCE = false                            -- Enable/disable saving zone states to file
+local SAVE_INTERVAL = 300                                   -- Save persistence every 5 minutes
+local PERSISTENCE_FILENAME = "capturedZones.lua"            -- Name of the persistence save file
+local MARK_ID_START = 10000                                 -- Starting mark ID for zone markings (to avoid conflicts)
 
-local COLOR_BLUE = { 0, 0, 1, 0.3 }                     -- Blue zone color (R, G, B, Alpha/Transparency)
-local COLOR_RED = { 1, 0, 0, 0.3 }                      -- Red zone color (R, G, B, Alpha/Transparency)
-local COLOR_NEUTRAL = { 1, 1, 1, 0.3 }                  -- Neutral zone color (R, G, B, Alpha/Transparency)
-local COLOR_CONTESTED = { 1, 1, 0, 0.5 }                -- Contested zone overlay color (R, G, B, Alpha/Transparency)
-local COLOR_PROGRESS = { 0, 1, 0, 0.8 }                 -- Capture progress bar color (R, G, B, Alpha/Transparency)
+local COLOR_BLUE = { 0, 0, 1, 0.3 }                         -- Blue zone color (R, G, B, Alpha/Transparency)
+local COLOR_RED = { 1, 0, 0, 0.3 }                          -- Red zone color (R, G, B, Alpha/Transparency)
+local COLOR_NEUTRAL = { 1, 1, 1, 0.3 }                      -- Neutral zone color (R, G, B, Alpha/Transparency)
+local COLOR_CONTESTED = { 1, 1, 0, 0.5 }                    -- Contested zone overlay color (R, G, B, Alpha/Transparency)
+local COLOR_PROGRESS = { 0, 1, 0, 0.8 }                     -- Capture progress bar color (R, G, B, Alpha/Transparency)
 
 local CAPTURE_MESSAGES = {
     blue = {
@@ -44,7 +45,7 @@ local CAPTURE_MESSAGES = {
     }
 }
 
---[[ DON'T MAKE CHANGES BELOW THIS LINE ]] --
+-- [[ DON'T CHANGE ANYTHING BELOW THIS LINE ]] --
 
 local zones = {}
 local zoneStates = {}
@@ -52,26 +53,68 @@ local captureProgress = {}
 local contestedOverlays = {}
 local progressBars = {}
 local lastSaveTime = 0
+local currentMarkId = MARK_ID_START
 
 local BLUE = coalition.side.BLUE
 local RED = coalition.side.RED
 local NEUTRAL = coalition.side.NEUTRAL
 
-local function tableToString(t)
-    local result = "{"
-    for k, v in pairs(t) do
-        local key = type(k) == "number" and "[" .. k .. "]" or '["' .. k .. '"]'
-        if type(v) == "table" then
-            result = result .. key .. "=" .. tableToString(v) .. ","
-        elseif type(v) == "string" then
-            result = result .. key .. '="' .. v .. '",'
-        elseif v == nil then
+local function getNextMarkId()
+    currentMarkId = currentMarkId + 1
+    return currentMarkId
+end
+
+local function ensureSaveDirectory()
+    local saveDir = lfs.writedir() .. "Missions\\Saves\\"
+    local attr = lfs.attributes(saveDir)
+    if not attr then
+        env.info("Creating Saves directory: " .. saveDir)
+        local success = lfs.mkdir(saveDir)
+        if success then
+            env.info("Successfully created Saves directory")
         else
-            result = result .. key .. "=" .. tostring(v) .. ","
+            env.info("Failed to create Saves directory")
+            return nil
         end
     end
-    result = result .. "}"
-    return result
+    return saveDir
+end
+
+local function tableToString(t)
+    if t == nil then
+        return "nil"
+    end
+    if type(t) ~= "table" then
+        return tostring(t)
+    end
+
+    local output = "{"
+    local firstItem = true
+
+    for k, v in pairs(t) do
+        if not firstItem then
+            output = output .. ","
+        end
+        firstItem = false
+
+        local keyStr = type(k) == "number" and "[" .. tostring(k) .. "]" or "[\"" .. tostring(k) .. "\"]"
+        local valueStr = ""
+
+        if type(v) == "table" then
+            valueStr = tableToString(v)
+        elseif type(v) == "string" then
+            valueStr = "\"" .. tostring(v) .. "\""
+        elseif v == nil then
+            valueStr = "nil"
+        else
+            valueStr = tostring(v)
+        end
+
+        output = output .. keyStr .. "=" .. valueStr
+    end
+
+    output = output .. "}"
+    return output
 end
 
 local function getCoalitionStrength(zone, coalitionSide)
@@ -110,15 +153,14 @@ local function drawZone(zoneIndex, color)
         env.info("Removed old mark " .. zone.markId .. " for zone " .. zoneIndex)
     end
 
-    zone.markId = math.floor(timer.getTime() * 10000) + (zoneIndex * 100) + math.random(1, 99)
+    zone.markId = getNextMarkId()
 
-    -- Debug info
     local zoneName = ZONE_NAMES[zoneIndex] or "Unknown"
     env.info("Drawing zone " ..
-        zoneIndex ..
-        " (" ..
-        zoneName ..
-        ") at (" .. zone.point.x .. ", " .. zone.point.z .. ") radius: " .. zone.radius .. " markId: " .. zone.markId)
+    zoneIndex ..
+    " (" ..
+    zoneName ..
+    ") at (" .. zone.point.x .. ", " .. zone.point.z .. ") radius: " .. zone.radius .. " markId: " .. zone.markId)
 
     local success = pcall(function()
         trigger.action.circleToAll(-1, zone.markId, zone.point, zone.radius, color, color, 2, true)
@@ -136,7 +178,7 @@ local function drawContestedOverlay(zoneIndex)
     if not zone then return end
 
     local contestRadius = zone.radius * 0.25
-    local markId = math.floor(timer.getTime() * 1000) + zoneIndex + 1000
+    local markId = getNextMarkId()
 
     contestedOverlays[zoneIndex] = markId
     trigger.action.circleToAll(-1, markId, zone.point, contestRadius, COLOR_CONTESTED, COLOR_CONTESTED, 3, true)
@@ -169,20 +211,20 @@ local function drawProgressBar(zoneIndex, progress)
 
     progressBars[zoneIndex] = {}
 
-    local backgroundId = math.floor(timer.getTime() * 1000) + zoneIndex + 2000
+    local backgroundId = getNextMarkId()
     trigger.action.rectToAll(-1, backgroundId,
         { x = barX, y = 0, z = barY - barLength / 2 },
         { x = barX + barWidth, y = 0, z = barY + barLength / 2 },
         { 0.2, 0.2, 0.2, 0.8 }, { 0.2, 0.2, 0.2, 0.8 }, 1, true)
-    table.insert(progressBars[zoneIndex], backgroundId)
+    progressBars[zoneIndex][1] = backgroundId
 
     local progressLength = barLength * (progress / 100)
-    local progressId = math.floor(timer.getTime() * 1000) + zoneIndex + 3000
+    local progressId = getNextMarkId()
     trigger.action.rectToAll(-1, progressId,
         { x = barX + 1, y = 0, z = barY - barLength / 2 + 1 },
         { x = barX + barWidth - 1, y = 0, z = barY - barLength / 2 + progressLength - 1 },
         COLOR_PROGRESS, COLOR_PROGRESS, 2, true)
-    table.insert(progressBars[zoneIndex], progressId)
+    progressBars[zoneIndex][2] = progressId
 end
 
 local function sendCaptureMessage(zoneIndex, coalitionSide)
@@ -199,6 +241,12 @@ end
 local function savePersistence()
     if not ENABLE_PERSISTENCE then return end
 
+    local saveDir = ensureSaveDirectory()
+    if not saveDir then
+        env.info("Failed to create save directory - persistence disabled for this session")
+        return
+    end
+
     local saveData = {}
     for i = 1, #zones do
         if zoneStates[i] then
@@ -210,14 +258,28 @@ local function savePersistence()
         end
     end
 
-    local saveString = "return " .. tableToString(saveData)
-    local file = io.open(lfs.writedir() .. "capture_zones_save.lua", "w")
+    if saveData == nil then
+        env.info("ERROR: saveData is nil, cannot save")
+        return
+    end
+
+    local success, saveString = pcall(function()
+        return "return " .. tableToString(saveData)
+    end)
+
+    if not success then
+        env.info("ERROR: Failed to serialize save data: " .. tostring(saveString))
+        return
+    end
+
+    local filePath = saveDir .. PERSISTENCE_FILENAME
+    local file = io.open(filePath, "w")
     if file then
         file:write(saveString)
         file:close()
-        env.info("Zone states saved successfully")
+        env.info("Zone states saved successfully to: " .. filePath)
     else
-        env.info("Failed to save zone states")
+        env.info("Failed to save zone states to: " .. filePath)
     end
 end
 
@@ -227,7 +289,14 @@ local function loadPersistence()
         return
     end
 
-    local file = io.open(lfs.writedir() .. "capture_zones_save.lua", "r")
+    local saveDir = ensureSaveDirectory()
+    if not saveDir then
+        env.info("Failed to access save directory - starting with neutral zones")
+        return
+    end
+
+    local filePath = saveDir .. PERSISTENCE_FILENAME
+    local file = io.open(filePath, "r")
     if file then
         local content = file:read("*all")
         file:close()
@@ -239,7 +308,7 @@ local function loadPersistence()
                     zoneStates[i].owner = data.owner or NEUTRAL
                     zoneStates[i].captureTimer = data.captureTimer or 0
                     zoneStates[i].capturingCoalition = (data.capturingCoalition == "nil") and nil or
-                        data.capturingCoalition
+                    data.capturingCoalition
 
                     if data.owner == BLUE then
                         drawZone(i, COLOR_BLUE)
@@ -250,12 +319,12 @@ local function loadPersistence()
                     end
                 end
             end
-            env.info("Zone states loaded successfully")
+            env.info("Zone states loaded successfully from: " .. filePath)
         else
             env.info("Failed to load zone states - using defaults")
         end
     else
-        env.info("No save file found - starting with neutral zones")
+        env.info("No save file found at: " .. filePath .. " - starting with neutral zones")
     end
 end
 
@@ -263,6 +332,7 @@ local function initializeZones()
     env.info("=== INITIALIZING CAPTURE ZONES ===")
     env.info("Looking for zones: " .. table.concat(ZONE_NAMES, ", "))
     env.info("Persistence: " .. (ENABLE_PERSISTENCE and "ENABLED" or "DISABLED"))
+    env.info("Mark ID range: " .. MARK_ID_START .. " - " .. (MARK_ID_START + 999))
 
     env.info("Checking all available zones in mission...")
 
@@ -281,7 +351,7 @@ local function initializeZones()
             captureProgress[i] = 0
 
             env.info("✓ FOUND zone: " ..
-                zoneName .. " at (" .. zone.point.x .. ", " .. zone.point.z .. ") radius: " .. zone.radius)
+            zoneName .. " at (" .. zone.point.x .. ", " .. zone.point.z .. ") radius: " .. zone.radius)
 
             timer.scheduleFunction(function()
                 drawZone(i, COLOR_NEUTRAL)
